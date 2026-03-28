@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AEGIS</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #0d1117; color: #c9d1d9; }
+        h1 { color: #58a6ff; }
+        .stats { margin: 20px 0; font-size: 18px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th { background: #161b22; color: #58a6ff; padding: 12px 8px; text-align: left; border-bottom: 2px solid #30363d; }
+        td { padding: 10px 8px; border-bottom: 1px solid #21262d; }
+        tr:hover { background: #161b22; }
+        .priority-critical { color: #f85149; font-weight: bold; }
+        .priority-warning { color: #d29922; }
+        .priority-notice { color: #58a6ff; }
+        .priority-error { color: #f85149; }
+        .badge-anomaly { background: #f8514922; color: #f85149; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-normal { background: #23883622; color: #238836; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+        .empty { text-align: center; padding: 40px; color: #484f58; }
+    </style>
+</head>
+<body>
+    <h1>AEGIS — Anomaly Detection Dashboard</h1>
+    <div class="stats">
+        Events reçus : {{ anomalies|length }}
+    </div>
+
+    {% if anomalies %}
+    <table>
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Priority</th>
+                <th>Rule</th>
+                <th>Pod</th>
+                <th>Namespace</th>
+                <th>Process</th>
+                <th>Commande</th>
+                <th>Verdict</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in anomalies %}
+            <tr>
+                <td>{{ event.timestamp[:19] }}</td>
+                <td class="priority-{{ event.priority|lower }}">{{ event.priority }}</td>
+                <td>{{ event.rule }}</td>
+                <td>{{ event.pod_name }}</td>
+                <td>{{ event.namespace }}</td>
+                <td>{{ event.proc_name }}</td>
+                <td>{{ event.proc_cmdline[:50] }}</td>
+                <td>
+                    {% if event.is_anomaly %}
+                        <span class="badge-anomaly">ANOMALIE</span>
+                    {% else %}
+                        <span class="badge-normal">Normal</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Aucun event reçu. En attente du webhook Falcosidekick...</div>
+    {% endif %}
+</body>
+</html>
