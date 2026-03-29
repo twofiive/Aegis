@@ -19,6 +19,9 @@ def dashboard():
 def webhook():
     event = request.get_json()
 
+    print("--- NOUVEL EVENT REÇU ---")
+    print(event) # Ceci affichera le contenu dans ton terminal
+
     # Extraire les infos utiles du JSON Falco
     output_fields = event.get('output_fields', {})
 
@@ -49,3 +52,4 @@ def get_anomalies():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+

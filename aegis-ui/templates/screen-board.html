@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="5" />
+    <title>AEGIS - SOC Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+        background: #0d1117;
+        color: #c9d1d9;
+      }
+      h1 {
+        color: #58a6ff;
+        border-bottom: 1px solid #30363d;
+        padding-bottom: 10px;
+      }
+      .stats {
+        margin: 20px 0;
+        font-size: 18px;
+        color: #8b949e;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 20px;
+        font-size: 14px;
+      }
+      th {
+        background: #161b22;
+        color: #58a6ff;
+        padding: 12px 8px;
+        text-align: left;
+        border-bottom: 2px solid #30363d;
+      }
+      td {
+        padding: 10px 8px;
+        border-bottom: 1px solid #21262d;
+        vertical-align: middle;
+      }
+      tr:hover {
+        background: #161b22;
+      }
+
+      /* Couleurs de priorité Falco */
+      .priority-critical,
+      .priority-error {
+        color: #f85149;
+        font-weight: bold;
+      }
+      .priority-warning {
+        color: #d29922;
+        font-weight: bold;
+      }
+      .priority-notice,
+      .priority-info {
+        color: #58a6ff;
+      }
+
+      /* Badges d'inférence IA */
+      .badge {
+        padding: 5px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+        text-align: center;
+        display: inline-block;
+      }
+      .badge-rf {
+        background: #f85149;
+        color: white;
+        border: 1px solid #ff7b72;
+        box-shadow: 0 0 8px rgba(248, 81, 73, 0.4);
+      }
+      .badge-if {
+        background: #d29922;
+        color: white;
+        border: 1px solid #e3b341;
+      }
+      .badge-normal {
+        background: #238636;
+        color: white;
+        border: 1px solid #2ea043;
+        opacity: 0.8;
+      }
+
+      .cmd-text {
+        font-family: "Courier New", Courier, monospace;
+        background: #010409;
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #7ee787;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🛡️ AEGIS — Threat Detection Dashboard</h1>
+
+    <div style="margin-bottom: 20px">
+      <button
+        id="btnSimulate"
+        style="
+          background-color: #f85149;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 6px;
+          font-weight: bold;
+          font-size: 14px;
+          cursor: pointer;
+          box-shadow: 0 0 10px rgba(248, 81, 73, 0.4);
+          transition: background-color 0.2s;
+        "
+      >
+        ⚠️ Simuler une Attaque Connue
+      </button>
+      <span
+        id="simStatus"
+        style="
+          margin-left: 15px;
+          font-size: 14px;
+          color: #7ee787;
+          display: none;
+        "
+        >Attaque envoyée !</span
+      >
+    </div>
+
+    <div class="stats">
+      Flux analysé : <strong>{{ anomalies|length }}</strong> événements en
+      mémoire.
+    </div>
+
+    {% if anomalies %}
+    <table>
+      <thead>
+        <tr>
+          <th>Heure (UTC)</th>
+          <th>Priorité (Falco)</th>
+          <th>Rule</th>
+          <th>Processus</th>
+          <th>Commande</th>
+          <th>Verdict de l'IA</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for event in anomalies %}
+        <tr>
+          <td>{{ event.timestamp[:19] | replace('T', ' ') }}</td>
+          <td class="priority-{{ event.priority|lower }}">
+            {{ event.priority }}
+          </td>
+          <td>
+            <strong>{{ event.rule }}</strong>
+          </td>
+          <td>{{ event.proc_name }}</td>
+          <td class="cmd-text">
+            {{ event.proc_cmdline[:50] }}{% if event.proc_cmdline|length > 50
+            %}...{% endif %}
+          </td>
+
+          <td>
+            {% if "CRITIQUE" in event.verdict %}
+            <span class="badge badge-rf">🔴 Signature Connue (RF)</span>
+            {% elif "SUSPECT" in event.verdict %}
+            <span class="badge badge-if">🟡 Comportement Anormal (IF)</span>
+            {% else %}
+            <span class="badge badge-normal">🟢 Trafic Sain</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div
+      style="
+        padding: 40px;
+        text-align: center;
+        background: #161b22;
+        border-radius: 8px;
+        border: 1px dashed #30363d;
+        margin-top: 20px;
+      "
+    >
+      <h3 style="color: #8b949e">Aucun événement reçu</h3>
+      <p style="color: #8b949e; font-size: 14px">
+        En attente des alertes depuis le Webhook Falcosidekick...
+      </p>
+    </div>
+    {% endif %}
+    <script>
+      document
+        .getElementById("btnSimulate")
+        .addEventListener("click", function () {
+          // Désactiver le bouton brièvement pour éviter le double-clic
+          const btn = this;
+          const status = document.getElementById("simStatus");
+          btn.disabled = true;
+          btn.style.opacity = "0.5";
+
+          // Appeler notre nouvelle route backend
+          fetch("/api/simulate", { method: "POST" })
+            .then((response) => {
+              if (response.ok) {
+                // Afficher le message de succès
+                status.style.display = "inline-block";
+                // Recharger la page immédiatement pour afficher la nouvelle alerte
+                setTimeout(() => {
+                  window.location.reload();
+                }, 500);
+              }
+            })
+            .catch((error) => {
+              console.error("Erreur lors de la simulation :", error);
+              btn.disabled = false;
+              btn.style.opacity = "1";
+            });
+        });
+    </script>
+  </body>
+</html>
