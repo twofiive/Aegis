@@ -80,13 +80,12 @@ def webhook():
     live_metrics = prom_client.get_node_metrics(node_name)
 
     # On attache le dictionnaire de métriques à l'événement global
-    event["prometheus_metrics"] = live_metrics
 
-    df_vector = detector.preprocess(event)
-    print(df_vector.info())
-    return jsonify({"Status": "Df imported correctly"}), 200
+    df_vector = detector.preprocess(event, live_metrics)
+    # print(df_vector.head(1))
+    # print(df_vector.info())
 
-    # output_fields = event.get('output_fields', {})
+    output_fields = event.get("output_fields", {})
 
     # --- ÉTAPE IA : Preprocessing + Verdict ---
     verdict_text, is_anomaly = detector.get_verdict(df_vector)
@@ -119,12 +118,16 @@ def simulate_attack():
     """Sélectionne une attaque au hasard et la traite comme si elle venait de Falco"""
     # 1. On choisit une attaque au hasard
     attack_event = random.choice(KNOWN_ATTACKS)
-
-    # 2. On simule les données Falco
     output_fields = attack_event.get("output_fields", {})
 
+    # 2. On simule les données Falco
+    node_name = attack_event.get("hostname", "unknown")
+    live_metrics = prom_client.get_node_metrics(node_name)
+
+    # On attache le dictionnaire de métriques à l'événement global
+
     # 3. On passe l'événement à l'IA (exactement comme le vrai webhook)
-    df_vector = detector.preprocess(output_fields)
+    df_vector = detector.preprocess(attack_event, live_metrics)
     verdict_text, is_anomaly = detector.get_verdict(df_vector)
 
     # 4. On prépare l'affichage
