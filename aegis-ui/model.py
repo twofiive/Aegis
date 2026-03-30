@@ -311,31 +311,6 @@ class AegisDetector:
         if df_input is None or df_input.empty:
             return "Erreur Preprocess", False
 
-        # # --- ZONE DE DÉBUG : Trouver l'erreur de colonnes ---
-        # model_features = list(self.features_list)
-        # input_features = list(df_input.columns)
-
-        # if model_features != input_features:
-        #     print("\n❌ [DEBUG AEGIS] Mismatch de colonnes détecté !")
-
-        #     # 1. Colonnes en trop dans l'input
-        #     extra = set(input_features) - set(model_features)
-        #     if extra:
-        #         print(f"  - En TROP dans l'input : {extra}")
-
-        #     # 2. Colonnes manquantes dans l'input
-        #     missing = set(model_features) - set(input_features)
-        #     if missing:
-        #         print(f"  - MANQUANTES dans l'input : {missing}")
-
-        #     # 3. Problème d'ordre
-        #     if not extra and not missing and model_features != input_features:
-        #         print("  - ⚠️ L'ordre des colonnes est incorrect !")
-
-        #     # Réalignement forcé pour essayer de sauver la prédiction
-        #     df_input = df_input.reindex(columns=self.features_list).fillna(0.0)
-        #     print("  - ✅ Tentative de réalignement auto effectuée.\n")
-
         try:
             # --- 1. TIER 1 : Le Sniper (Random Forest) ---
             # Il cherche une signature d'attaque connue qu'il a apprise.

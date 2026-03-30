@@ -3,8 +3,39 @@ from datetime import datetime
 from model import AegisDetector
 from prometheus_live import PrometheusLiveClient
 import random
+from zoneinfo import ZoneInfo  # Intégré dans Python 3.9+
+
 
 app = Flask(__name__)
+
+
+# Time configuration
+def timeConf(falco_time_str):
+    if falco_time_str:
+        try:
+            # Falco envoie un 'Z' à la fin pour dire UTC. Python préfère '+00:00'.
+            clean_time_str = falco_time_str.replace("Z", "+00:00")
+
+            # On transforme le texte en vrai objet "Temps" conscient de l'UTC
+            dt_utc = datetime.fromisoformat(clean_time_str)
+
+            # ON FAIT LA CONVERSION MAGIQUE ICI (Heure de Paris/France)
+            dt_local = dt_utc.astimezone(ZoneInfo("Europe/Paris"))
+
+            # On le remet en texte pour ton JSON (ex: 2026-03-30T16:02:40)
+            final_timestamp = dt_local.isoformat()
+            return final_timestamp
+        except ValueError:
+            # Sécurité si le format de Falco est bizarre
+            final_timestamp = datetime.now(
+                ZoneInfo("Europe/Paris")
+            ).isoformat()
+            return final_timestamp
+    else:
+        # Le plan B utilise maintenant explicitement ton heure locale
+        final_timestamp = datetime.now(ZoneInfo("Europe/Paris")).isoformat()
+        return final_timestamp
+
 
 # Initialisation
 detector = AegisDetector()
@@ -75,6 +106,9 @@ def webhook():
     if not event:
         return jsonify({"error": "No data"}), 400
 
+    falco_time_str = event.get("time")
+    timestamp = timeConf(falco_time_str)
+
     # --- NOUVEAU : Récupération du contexte Prometheus ---
     node_name = event.get("hostname", "unknown")
     live_metrics = prom_client.get_node_metrics(node_name)
@@ -92,7 +126,7 @@ def webhook():
 
     # --- PRÉPARATION POUR LE DASHBOARD ---
     processed_event = {
-        "timestamp": event.get("time", datetime.now().isoformat()),
+        "timestamp": timestamp,
         "rule": event.get("rule", "unknown"),
         "priority": event.get("priority", "unknown"),
         "pod_name": output_fields.get("k8s.pod.name", "unknown"),
@@ -129,6 +163,7 @@ def simulate_attack():
     # 3. On passe l'événement à l'IA (exactement comme le vrai webhook)
     df_vector = detector.preprocess(attack_event, live_metrics)
     verdict_text, is_anomaly = detector.get_verdict(df_vector)
+    # print(df_vector.head(1))
 
     # 4. On prépare l'affichage
     processed_event = {
@@ -147,12 +182,8 @@ def simulate_attack():
     if len(anomalies) > 500:
         anomalies.pop(0)
 
-    return (
-        jsonify(
-            {"status": "success", "message": "Attaque simulée avec succès"}
-        ),
-        200,
-    )
+    print(f"📡 Event: {processed_event['rule']} | Verdict: {verdict_text}")
+    return jsonify({"status": "processed", "verdict": verdict_text}), 200
 
 
 if __name__ == "__main__":
